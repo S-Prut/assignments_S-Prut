@@ -133,7 +133,9 @@ ${CROSS_COMPILE}readelf -a writer | grep "program interpreter"
 ${CROSS_COMPILE}readelf -a writer | grep "Shared library"
 cp -v writer ${OUTDIR}/rootfs/home
 cp -v finder.sh ${OUTDIR}/rootfs/home
-cp -R -v ./conf ${OUTDIR}/rootfs/home
+cp -v finder-test.sh ${OUTDIR}/rootfs/home
+cp -R -v -L ./conf ${OUTDIR}/rootfs/home
+cp -v ~/sprut-assignments/assignment3/finder-app/autorun-qemu.sh ${OUTDIR}/rootfs/home
 # --- END TODO: Copy the finder related scripts and executables ---
 
 # TODO: Chown the root directory
