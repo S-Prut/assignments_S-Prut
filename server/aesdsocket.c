@@ -3,6 +3,7 @@
 #include "string.h"
 #include "aesdsocket.h"
 //#include <sys/types.h> //system types
+#include <sys/stat.h> //system status umask()
 #include <stdbool.h> //processing boot as a type
 #include <sys/socket.h> // sockets handling - socket(), bind(), accept()
 #include <arpa/inet.h> // hton.() fct
@@ -58,6 +59,11 @@ static bool HANDLING_FLAG = true;
 }*/
 
 
+/**
+ * @fn signal_handler
+ *  This function handles a signals SIGINT and SIGHALT to interrupt or terminate an application
+ * @param signal_number - the signal number
+ */
 void signal_handler(int signal_number)
 {
    const char *file_name = PATH_TO_FILE "/" FILE_NAME;
@@ -69,6 +75,31 @@ void signal_handler(int signal_number)
       remove(file_name);
    }
    exit(EXIT_SUCCESS);
+}
+
+/**
+ * @fn invoke_daemon
+ *     This function provide a service to fork a process and invoke it as deamon
+ */
+void invoke_daemon()
+{
+    pid_t pid = fork();
+
+    if (pid < 0) exit(EXIT_FAILURE);
+    if (pid > 0) exit(EXIT_SUCCESS); // Parent exits
+
+    if (setsid() < 0) exit(EXIT_FAILURE);
+
+    pid = fork();
+    if (pid < 0) exit(EXIT_FAILURE);
+    if (pid > 0) exit(EXIT_SUCCESS);
+
+    umask(0);
+    chdir("/");
+
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
 }
 
 
@@ -205,7 +236,7 @@ int main (int argc, char *argv[]) {
 #ifdef DEBUG_MODE_EN
          printf("Started in deamon mode\n");
 #endif
-         //invokedaemon();
+         invoke_daemon();
       }
       else
       {
