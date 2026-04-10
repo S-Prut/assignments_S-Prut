@@ -4,32 +4,32 @@
 #include "aesdsocket.h"
 //#include <sys/types.h> //system types
 #include <stdbool.h> //processing boot as a type
-#include <sys/socket.h> //socket
+#include <sys/socket.h> // sockets handling - socket(), bind(), accept()
 #include <arpa/inet.h> // hton.() fct
-#include <syslog.h> //syslog/openlog/closelog fnc
-#include <unistd.h> //write fnc
-#include <fcntl.h>  //open fnc
+#include <syslog.h> // system logging handling syslog()/openlog()/closelog() fnc
+#include <unistd.h> // file handling write() fnc
+#include <fcntl.h>  // file handling open(() fnc
+#include <signal.h> // signals handling
 
 //--------------------------
 // definitions section
 //--------------------------
 //#define DEBUG_MODE_EN //to be removed
-#define NEW_LINE              '\n'
-#define NULL_TERMINATE        '\0'
-#define IP_ADDRESS     "127.0.0.1"
-#define PORT                  9000 // the port users will be connecting to
-#define BACKLOG                  5 // how many pending connections queue holds
-#define FILE_PATH       "/var/tmp"
+#define NEW_LINE                   '\n'
+#define NULL_TERMINATE             '\0'
+#define IP_ADDRESS          "127.0.0.1"
+#define PORT                       9000 // the port users will be connecting to
+#define BACKLOG                       5 // how many pending connections queue holds
+#define PATH_TO_FILE         "/var/tmp"
 #define FILE_NAME      "aesdsocketdata"
-#define STR_LEN                256
-#define BUFFER_SIZE           1024
-#define IP_ADDRESS_STR_LEN      16
+#define STR_LEN                     256
+#define BUFFER_SIZE                1024
+#define IP_ADDRESS_STR_LEN           16
 
 #define handle_error(msg)\
     printf("Error on %s!\n", msg);\
     syslog(LOG_ERR, "Error on %s", msg);
 
-#define msleep(milliseconds) usleep((unsigned int)milliseconds*1000)
 
 //--------------------------
 // declarations section
@@ -40,10 +40,37 @@ typedef enum ret_code_t {
 } ret_code_type;
 
 
-ret_code_type delete_file(char* filedir)
+/***************************
+* Global declarations
+****************************/
+static bool HANDLING_FLAG = true;
+
+
+/**
+ * @fn check_file
+ *     This function checks if a file is existing on the path in the file system
+ * @param filedir
+ */
+/*bool check_file(char* filedir)
 {
-   return ret_failed;
+
+   return false;
+}*/
+
+
+void signal_handler(int signal_number)
+{
+   const char *file_name = PATH_TO_FILE "/" FILE_NAME;
+   if (   (signal_number == SIGINT)
+       || (signal_number == SIGTERM)
+       ) {
+      syslog(LOG_DEBUG, "Caught signal, exiting");
+      HANDLING_FLAG = false;
+      remove(file_name);
+   }
+   exit(EXIT_SUCCESS);
 }
+
 
 /* /@fn write_str_to_file
  *      This function appends a string into a file. If it doesn't exist create this
@@ -55,6 +82,7 @@ ret_code_type write_str_to_file(char* string, int str_len, char* file_path)
 {
    int close_ret; //return value after closing the opened file
    ssize_t nr;    //return number of the written symbols into the file
+
    int ffd = open(file_path, O_WRONLY | O_APPEND | O_CREAT, 0644);
    if (ffd == -1) {
       /*error*/
@@ -93,8 +121,10 @@ ret_code_type write_str_to_file(char* string, int str_len, char* file_path)
  * @param file_path
  */
 ret_code_type send_file_to_socket(int socket_id, char* file_path) {
-   ssize_t nr_bytes = 0; //returned number of read data from file
-   char* buffer = malloc(BUFFER_SIZE);
+   ssize_t nr_bytes = 0;               // returned number of read data from file
+   //char buffer[BUFFER_SIZE];         // to avoid to reserve a large memory area in the stack
+   char* buffer = malloc(BUFFER_SIZE); // instead reserve memory in HEAP
+
    memset(buffer, 0, BUFFER_SIZE);         /* Clear buffer array */
 
    //open stored file to be sent
@@ -156,6 +186,10 @@ int main (int argc, char *argv[]) {
    //open syslog
    openlog(NULL, 0, LOG_USER); //start syslog
 
+   //register signals
+   signal(SIGINT, signal_handler);  //assign SIGINT (e.g. Ctrl-C) to signal-handler
+   signal(SIGTERM, signal_handler); //assign SIGTERM (e.g. kill -TERM) to signal-handler
+
    if (argc == 1) {
 #ifdef DEBUG_MODE_EN
       printf("Started in server mode\n");
@@ -193,9 +227,8 @@ int main (int argc, char *argv[]) {
    memset(filepath, 0, STR_LEN );                       /* Clear array */
    memset((char*)ip_str, 0, sizeof ip_str);             // clean the string
 
-   //prepare file path
-   //write a message-buffer to a file
-   strcat(filepath, FILE_PATH);
+   //prepare file path to write a message-buffer to a file
+   strcat(filepath, PATH_TO_FILE);
    strcat(filepath, "/");
    strcat(filepath, FILE_NAME);
    //filepath [strlen(FILE_PATH)+strlen(FILE_NAME)+2] = NULL_TERMINATE; // Null terminate the string
@@ -255,7 +288,7 @@ int main (int argc, char *argv[]) {
    socklen_t client_addr_len = sizeof client_addr;
 
 
-   while (1) {//main accept llop - allos to handle more than one connections
+   while (HANDLING_FLAG) {//main accept llop - allos to handle more than one connections
 
       int client_fd = accept(server_fd,
                              (struct sockaddr *)&client_addr,
@@ -279,7 +312,7 @@ int main (int argc, char *argv[]) {
       char*  pkt_buffer = NULL;
       size_t pkt_size   = 0; //the size of the whole packet
       int    cnt        = 0;
-      while (1) {
+      while (HANDLING_FLAG) {
          //receive packets over the connection
          //it could be separated in more than one packets
 
@@ -368,6 +401,8 @@ int main (int argc, char *argv[]) {
 
    //free a message buffer (if created using getaddrinfo-fctn)
    free(data_buffer);
+
+   remove(filepath); //remove stored file
 
    //close syslog
    closelog();

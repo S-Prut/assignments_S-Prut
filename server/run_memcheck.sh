@@ -1,1 +1,1 @@
-valgrind  --leak-check=full --show-leak-kinds=all --track-origins=yes --xml=no --log-file=/home/lxuser/sprut-assignments/assignment3/server/Valgrind-Out.xml "/home/lxuser/sprut-assignments/assignment3/server/aesdsocket"
+valgrind  --leak-check=full --show-leak-kinds=all --track-origins=yes --xml=no --log-file=/home/lxuser/sprut-assignments/assignment3/server/Valgrind-Out.txt "/home/lxuser/sprut-assignments/assignment3/server/aesdsocket"
