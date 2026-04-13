@@ -111,7 +111,6 @@ void invoke_daemon()
  */
 ret_code_type write_str_to_file(char* string, int str_len, char* file_path)
 {
-   int close_ret; //return value after closing the opened file
    ssize_t nr;    //return number of the written symbols into the file
 
    int ffd = open(file_path, O_WRONLY | O_APPEND | O_CREAT, 0644);
@@ -119,13 +118,14 @@ ret_code_type write_str_to_file(char* string, int str_len, char* file_path)
       /*error*/
       syslog(LOG_ERR, "Error opening file %s", file_path);
       printf("Error opening file %s\n", file_path);
+      close (ffd);
       return ret_failed;
    }
 
    syslog(LOG_DEBUG, "Opening file %s", file_path);
 
    // Write the text to the file
-   nr = write(ffd, string, str_len);
+   nr = write(ffd, string, (size_t)str_len);
 
    //logging message
    syslog(LOG_DEBUG, "Writing %d characters of \'%s\' to %s", str_len, string, file_path);
@@ -133,12 +133,12 @@ ret_code_type write_str_to_file(char* string, int str_len, char* file_path)
 #ifdef DEBUG_MODE_EN
    printf("numb of written characters: %d\n", (int)nr);
 #endif //DEBUG_MODE_EN
-   if (nr == -1 || nr != str_len) {printf("error: nr= %d\n", (int)nr);}
+   if ((int)nr == -1 || (int)nr != str_len) {printf("error: nr= %d\n", (int)nr);}
 
-   close_ret = close (ffd);
-   if (close_ret != 0) {
+   if (0 != close (ffd)) {
       printf("error close file-descriptor\n");
       syslog(LOG_ERR, "Error closing file %s", file_path);
+      return ret_failed;
    }
 
    syslog(LOG_DEBUG, "Closing file %s", file_path);
@@ -164,6 +164,8 @@ ret_code_type send_file_to_socket(int socket_id, char* file_path) {
       /*error*/
       syslog(LOG_ERR, "Error opening file %s", file_path);
       printf("Error opening file %s\n", file_path);
+      free(buffer); // free the memory
+      close(ffd);
       return ret_failed;
    }
 
@@ -197,13 +199,13 @@ ret_code_type send_file_to_socket(int socket_id, char* file_path) {
          }
          total_sent += byte_sent;
 
-      }
+      } //while
 
 #ifdef DEBUG_MODE_EN
       printf("Sent total bytes: %d\n", (bytes += (int)byte_sent));
 #endif //DEBUG_MODE_EN
 
-   }
+   } //while
 
    free(buffer); // free the memory
    close(ffd); //close opened file descriptor
@@ -389,8 +391,9 @@ int main (int argc, char *argv[]) {
                int packet_len = i - pkt_start_pos + 1; //calculate the length of last received packet
 
                //append to file the last received packet only
-               if (ret_failed == write_str_to_file(pkt_buffer + pkt_start_pos, packet_len, filepath)) { printf("Write file failed.\n"); break; }
-
+               if (ret_failed == write_str_to_file(pkt_buffer + pkt_start_pos, packet_len, filepath)) {
+                  printf("Write file failed.\n"); break;
+               }
 
                // Send full file back over socket-descriptor
                send_file_to_socket(client_fd, filepath);
