@@ -190,7 +190,11 @@ ret_code_type send_file_to_socket(int socket_id, char* file_path) {
          printf("%ld bytes have been sent!\n", byte_sent);
 #endif // DEBUG_MODE_EN
 
-         if (byte_sent < 0) return ret_failed;
+         if (byte_sent < 0) {
+            free(buffer); // free the memory
+            close(ffd);
+            return ret_failed;
+         }
          total_sent += byte_sent;
 
       }
@@ -359,7 +363,7 @@ int main (int argc, char *argv[]) {
          char* tmp = realloc(pkt_buffer, pkt_size + bytes_nr);
          if (!tmp) {
             syslog(LOG_ERR, "Realloc failed");
-            free(pkt_buffer);
+            free(tmp);
             break;
          }
          pkt_buffer = tmp; //assign start address of new re-allocated complett packet in memory
