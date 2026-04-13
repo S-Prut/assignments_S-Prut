@@ -4,6 +4,7 @@ OBJECTS := $(SOURCES:.c=.o)
 
 CC := $(CROSS_COMPILE)gcc
 CFLAGS += -Wall -Werror
+#CFLAGS += -g
 
 Debug: all
 default: all
