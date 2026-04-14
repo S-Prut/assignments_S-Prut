@@ -128,9 +128,8 @@ ret_code_type write_str_to_file(char* string, int str_len, char* file_path)
    nr = write(ffd, string, (size_t)str_len);
 
    //logging message
-   syslog(LOG_DEBUG, "Writing %d characters of \'%s\' to %s", str_len, string, file_path);
-
 #ifdef DEBUG_MODE_EN
+   syslog(LOG_DEBUG, "Writing %d characters of \'%s\' to %s", str_len, string, file_path);
    printf("numb of written characters: %d\n", (int)nr);
 #endif //DEBUG_MODE_EN
    if ((int)nr == -1 || (int)nr != str_len) {printf("error: nr= %d\n", (int)nr);}
