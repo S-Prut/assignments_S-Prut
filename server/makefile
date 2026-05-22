@@ -1,13 +1,20 @@
 TARGET  := aesdsocket
 SOURCES := aesdsocket.c
 OBJECTS := $(SOURCES:.c=.o)
+INCLUDES :=
 
 CC := $(CROSS_COMPILE)gcc
 CFLAGS += -Wall -Werror
-#CFLAGS += -g
+LDFLAGS :=
+CFLAGS_DEBUG += $(CFLAGS) -g -O0
 
-Debug: all
-default: all
+Debug: $(SOURCES)
+	@echo "--- Debug ---"
+	@echo "Compiler: " $(CC)
+	@echo "--- start compile sources" $< " ---"
+	$(CC) $(CFLAGS_DEBUG) -c $^ -o $(TARGET)
+	@echo "--- end compile sources" $< " ---"
+
 all: $(TARGET)
 	@echo "Compiler: " $(CC)
 
@@ -25,4 +32,4 @@ $(TARGET): $(OBJECTS)
 .PHONY: clean
 cleanDebug: clean
 clean:
-	rm -f $(TARGET) ./*.o
+	rm -f $(TARGET) $(OBJECTS)
