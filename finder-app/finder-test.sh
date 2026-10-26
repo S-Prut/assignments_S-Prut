@@ -8,11 +8,8 @@ set -u
 NUMFILES=10
 WRITESTR=AELD_IS_FUN
 WRITEDIR=/tmp/aeld-data
-# the finder-app directory path
 FINDER_APP_PATH=$(realpath $(dirname $0))
-# Configuration directory
 FINDER_CONF_PATH="/etc/finder-app/conf"
-# Result output file
 RESULT_FILE="/tmp/assignment4-result.txt"
 username=$(cat ${FINDER_CONF_PATH}/username.txt)
 

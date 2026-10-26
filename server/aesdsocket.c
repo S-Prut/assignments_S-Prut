@@ -15,21 +15,23 @@
 //--------------------------
 // definitions section
 //--------------------------
-//#define DEBUG_MODE_EN //to be removed
+//#define DEBUG_MODE_EN                   //to be removed
 #define NEW_LINE                   '\n'
 #define NULL_TERMINATE             '\0'
-#define IP_ADDRESS          "127.0.0.1"
-#define PORT                       9000 // the port users will be connecting to
-#define BACKLOG                       5 // how many pending connections queue holds
+//#define IP_ADDRESS          "127.0.0.1"
+#define PORT                     (9000) // the port users will be connecting to
+#define BACKLOG                     (5) // how many pending connections queue holds
 #define PATH_TO_FILE         "/var/tmp"
 #define FILE_NAME      "aesdsocketdata"
-#define STR_LEN                     256
-#define BUFFER_SIZE                1024
-#define IP_ADDRESS_STR_LEN           16
+#define STR_LEN                   (256)
+#define BUFFER_SIZE              (1024)
+#define IP_ADDRESS_STR_LEN         (16)
 
 #define handle_error(msg)\
-    printf("Error on %s!\n", msg);\
-    syslog(LOG_ERR, "Error on %s", msg);
+   syslog(LOG_ERR, "Error on %s", msg);\
+   free(data_buffer);\
+   closelog();\
+   return EXIT_FAILURE;
 
 
 //--------------------------
@@ -44,7 +46,7 @@ typedef enum ret_code_t {
 /***************************
 * Global declarations
 ****************************/
-static bool HANDLING_FLAG = true;
+static volatile bool HANDLING_FLAG = true;
 
 
 /**
@@ -64,7 +66,7 @@ static bool HANDLING_FLAG = true;
  *  This function handles a signals SIGINT and SIGHALT to interrupt or terminate an application
  * @param signal_number - the signal number
  */
-void signal_handler(int signal_number)
+static void signal_handler(int signal_number)
 {
    const char *file_name = PATH_TO_FILE "/" FILE_NAME;
    if (   (signal_number == SIGINT)
@@ -211,7 +213,12 @@ ret_code_type send_file_to_socket(int socket_id, char* file_path) {
    return ret_success;
 }
 
-
+/**
+ * @fn main
+ *     The main function
+ * @param argc - Number of arguments
+ * @param argv - Array of arguments
+ */
 int main (int argc, char *argv[]) {
    char* data_buffer = malloc(BUFFER_SIZE); //pointer to message data buffer
    //char data_buffer[BUFF_SIZE];
@@ -246,19 +253,10 @@ int main (int argc, char *argv[]) {
       else
       {
          printf("Usage: %s [-d]\n", argv[0]);
-         syslog(LOG_ERR, "Invalid arguments");
-         //finish app properly
-         //free a message buffer (if created using getaddrinfo-fctn)
-         free(data_buffer);
-         //close syslog
-         closelog();
-         return EXIT_FAILURE;
+         handle_error("arguments");
       }
    }
 
-   //socket-address instance
-   struct sockaddr_in server_sockaddr;
-   memset(&server_sockaddr, 0, sizeof server_sockaddr); /* Clear structure */
    memset(data_buffer, 0, BUFFER_SIZE);                 /* Clear array */
    memset(filepath, 0, STR_LEN );                       /* Clear array */
    memset((char*)ip_str, 0, sizeof ip_str);             // clean the string
@@ -277,12 +275,7 @@ int main (int argc, char *argv[]) {
    if (server_fd == -1)
    {
       printf("Error on socket creation!\n");
-      syslog(LOG_ERR, "Error on socket creation");
-      //finish app properly
-      //free a message buffer (if created using getaddrinfo-fctn)
-      free(data_buffer);
-      closelog();
-      return EXIT_FAILURE;
+      handle_error("socket");
    }
 
    // Enable SO_REUSEADDR to avoid bind failing error message 'Address already in use'
@@ -290,10 +283,13 @@ int main (int argc, char *argv[]) {
    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
    //Prepare address
-   server_sockaddr.sin_family      = AF_INET;
-   server_sockaddr.sin_port        = htons(PORT);
-   server_sockaddr.sin_addr.s_addr = inet_addr(IP_ADDRESS); //accept only local(host) address
-   //server_sockaddr.sin_addr.s_addr = INADDR_ANY;
+   //socket-address instance
+   struct sockaddr_in server_sockaddr = {
+      .sin_family      = AF_INET,
+      .sin_port        = htons(PORT),
+      //.sin_addr.s_addr = inet_addr(IP_ADDRESS) //accept only local(host) address
+      .sin_addr.s_addr = INADDR_ANY            //accept any address
+   };
    memset(server_sockaddr.sin_zero, '\0', sizeof server_sockaddr.sin_zero);
 
    //now call bind
@@ -302,14 +298,7 @@ int main (int argc, char *argv[]) {
    if (ret_val != 0)
    {
       printf("Error on bind!\n");
-      syslog(LOG_ERR, "Error on bind");
-      // close socket file descriptor
-      close(server_fd);
-      //finish app properly
-      //free a message buffer (if created using getaddrinfo-fctn)
-      free(data_buffer);
-      closelog();
-      return EXIT_FAILURE;
+      handle_error("bind");
    }
    if (deamon_mode) printf("Started as deamon - shall fork the process. TBD!\n");
 
